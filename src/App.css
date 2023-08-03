@@ -36,3 +36,20 @@
     transform: rotate(360deg);
   }
 }
+
+.map-container {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+}
+
+.slider-container {
+  position: absolute;
+  bottom: 30px;
+  right: 30px;
+  width: 150px;
+}
+
+.slider-container input[type='range'] {
+  width: 100%;
+}
