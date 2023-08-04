@@ -6,14 +6,14 @@ import './leaflet-geojson-vt';
 import _ from 'lodash';
 import * as turf from '@turf/turf';
 
-function MapTest() {
+function MapTesttt() {
     const mapRef = useRef(null);
     const websocketRef = useRef(null);
-    const vectorTileLayerRef = useRef([]);
+    const vectorTileLayerRef = useRef(null);
     const [opacity, setOpacity] = useState(1.0);
 
     useEffect(() => {
-        const THROTTLE_TIME = 10; // Throttle time in milliseconds
+        const THROTTLE_TIME = 40; // Throttle time in milliseconds
 
         // Set up the Leaflet map if it doesn't exist
         if (!mapRef.current) {
@@ -25,18 +25,13 @@ function MapTest() {
         
 
         // Connect to the WebSocket server
-        websocketRef.current = new WebSocket('ws://localhost:8080/geosocket');
+        websocketRef.current = new WebSocket('ws://localhost:8080/geosocket1');
 
         let throttleHandle;
         let dataQueue = [];
         let circle;
         let CircleLength = 10; // Default circle radius in meters
         let radius = 0;
-        let hitung = 0;
-        let startAzDelete = null;
-        let endAzDelete = null;
-        let hapus = 0;
-        let start = 0;
         let polyline;
 
         // Function to create/update the circle with a given radius
@@ -48,7 +43,7 @@ function MapTest() {
                     weight:2,
                     color: '#2AC80D',
                     fillColor: '#000000',
-                    fillOpacity: 0.5,
+                    fillOpacity: 0.8,
                     radius: radius,
                 }).addTo(mapRef.current);
             }
@@ -63,13 +58,12 @@ function MapTest() {
 
             if (polyline) {
                 polyline.setLatLngs(lineCoordinates);
-                polyline.bringToFront();
             } else {
-                polyline = L.polyline(lineCoordinates, { color: '#2AC80D' }).addTo(mapRef.current);
-                polyline.bringToFront();
+                polyline = L.polyline(lineCoordinates, { color: 'red' }).addTo(mapRef.current);
             }
 
         }
+
 
         // Create an empty polyline and add it to the map
         // var polyline = L.polyline([], { color: '#2AC80D',weight: 5 }).addTo(mapRef.current);
@@ -82,66 +76,7 @@ function MapTest() {
         // Handle WebSocket message event
         websocketRef.current.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            // console.log(data);
-            try {
-
-                if(startAzDelete === null ){
-                    startAzDelete = data.startAzi - 0.17;
-                    endAzDelete =  data.endAzi + 0.17;
-                } 
-                if (hapus === 0){
-                    if(data.startAzi > endAzDelete){
-                        hapus = 1;
-                    }
-                } else if (hapus ===1){
-                    if(data.startAzi > startAzDelete && data.startAzi <  endAzDelete){
-                        hapus = 2;
-                    }
-                }
-
-                    // Replace these values with your desired starting point coordinates
-                    const startLatitude = -6.949612491503703;
-                    const startLongitude = 107.61957049369812;
-
-                    // Replace these values with your desired bearing and distance
-                    let bearing = data.startAzi; // in degrees
-                    const distance = 20000; // in meters
-
-                    // Function to calculate the destination point given the starting point, bearing, and distance
-                    function calculateDestinationPoint(lat, lon, bearing, distance) {
-                    const radiusEarth = 6371e3; // Earth's radius in meters
-
-                    const lat1 = (lat * Math.PI) / 180;
-                    const lon1 = (lon * Math.PI) / 180;
-                    const angularDistance = distance / radiusEarth;
-
-                    const lat2 = Math.asin(
-                        Math.sin(lat1) * Math.cos(angularDistance) +
-                        Math.cos(lat1) * Math.sin(angularDistance) * Math.cos(bearing * (Math.PI / 180))
-                    );
-
-                    const lon2 =
-                        lon1 +
-                        Math.atan2(
-                        Math.sin(bearing * (Math.PI / 180)) * Math.sin(angularDistance) * Math.cos(lat1),
-                        Math.cos(angularDistance) - Math.sin(lat1) * Math.sin(lat2)
-                        );
-
-                    return [((lat2 * 180) / Math.PI).toFixed(6), ((lon2 * 180) / Math.PI).toFixed(6)];
-                    }
-
-                    // Create a moving polyline
-                    const startLatLng = L.latLng(startLatitude, startLongitude);
-                    const destinationPoint = calculateDestinationPoint(startLatitude, startLongitude, bearing, distance);
-            // Draw Line
-            updateLineCoordinates(startLatitude,startLongitude,destinationPoint[0],destinationPoint[1])  
-            } catch {
-                return;
-            }
-
-
-
-            const data2 = JSON.parse(event.data);
+            
 
             if (data.features && data.features.length > 0) {
                 // Add received data to the queue
@@ -163,22 +98,21 @@ function MapTest() {
         const processGeoJSONData = (dataQueue) => {
             const data = _.merge({}, ...dataQueue); // Merge all GeoJSON data into one
             const options = (feature) => {
-                hitung = hitung +1;
+                console.log(data)
+                
                 // Draw Circle
                 if (data.features[data.features.length -1].properties.radius > CircleLength ) {
-                    radius = data.features[data.features.length -1].properties.radius
+                    radius = data.features[data.features.length -1].properties.radius;
                     CircleLength = data.features[data.features.length -1].properties.radius;
                     updateCircleRadius(radius);
                 }
-
                 
-            
                 const properties = feature.properties || {}; // Ensure properties object exists
             
                 // Provide default values if properties are missing
                 const strokeColor = properties.stroke || '#2AC80D';
                 const fillColor = properties.fill || '#2AC80D';
-                const weight = properties.weight || 3;
+                const weight = properties.weight || 1;
                 const opacity = properties.opacity || 1.0;
                 const fillOpacity = properties.opacity || 1.0;
             
@@ -191,25 +125,75 @@ function MapTest() {
                 };
             };            
 
-           
-            const vectorTile = L.geoJson(data, { style: options });
-            vectorTile.addTo(mapRef.current);
+            if (vectorTileLayerRef.current) {
+                // If the vector tile layer already exists, update it with new data
+                const newLayer = L.geoJson(data, { style: options }); // Add the new GeoJSON layer to the Layer Group
 
+                const vectorTileLayerGroup = vectorTileLayerRef.current;
+                const layers = vectorTileLayerGroup.getLayers();
 
-
-            try {
-                if (hapus === 2){
-                        mapRef.current.removeLayer(vectorTileLayerRef.current[0]);
-                        vectorTileLayerRef.current.shift();
+                // Remove the very first added vector from the map
+                if (layers.length > 2000) {
+                    const firstLayer = layers[0];
+                    vectorTileLayerGroup.removeLayer(firstLayer);
                 }
-            } catch (error){
-                console.log("Error");
-                return;
-            }
-            vectorTileLayerRef.current.push(vectorTile);
 
-        
-                 
+                vectorTileLayerGroup.addLayer(newLayer);
+            } else {
+                // Create a new Layer Group and add the GeoJSON layer to it
+                const vectorTileLayerGroup = L.layerGroup();
+                vectorTileLayerGroup.addLayer(L.geoJson(data, { style: options }));
+                vectorTileLayerGroup.addTo(mapRef.current);
+                vectorTileLayerRef.current = vectorTileLayerGroup;
+            }
+
+            // Limit the number of features displayed
+            if (vectorTileLayerRef.current.getLayers().length > 2048) {
+                mapRef.current.removeLayer(vectorTileLayerRef.current);
+                vectorTileLayerRef.current = null;
+            }
+
+           
+            
+            // Replace these values with your desired starting point coordinates
+            const startLatitude = -6.949612491503703;
+            const startLongitude = 107.61957049369812;
+
+            // Replace these values with your desired bearing and distance
+            let bearing = data.features[0].properties.endAz; // in degrees
+            const distance = 20000; // in meters
+
+            // Function to calculate the destination point given the starting point, bearing, and distance
+            function calculateDestinationPoint(lat, lon, bearing, distance) {
+            const radiusEarth = 6371e3; // Earth's radius in meters
+
+            const lat1 = (lat * Math.PI) / 180;
+            const lon1 = (lon * Math.PI) / 180;
+            const angularDistance = distance / radiusEarth;
+
+            const lat2 = Math.asin(
+                Math.sin(lat1) * Math.cos(angularDistance) +
+                Math.cos(lat1) * Math.sin(angularDistance) * Math.cos(bearing * (Math.PI / 180))
+            );
+
+            const lon2 =
+                lon1 +
+                Math.atan2(
+                Math.sin(bearing * (Math.PI / 180)) * Math.sin(angularDistance) * Math.cos(lat1),
+                Math.cos(angularDistance) - Math.sin(lat1) * Math.sin(lat2)
+                );
+
+            return [((lat2 * 180) / Math.PI).toFixed(6), ((lon2 * 180) / Math.PI).toFixed(6)];
+            }
+
+    
+            // Create a moving polyline
+            const startLatLng = L.latLng(startLatitude, startLongitude);
+            const destinationPoint = calculateDestinationPoint(startLatitude, startLongitude, bearing, distance);
+            // Draw Line
+            updateLineCoordinates(startLatitude,startLongitude,destinationPoint[0],destinationPoint[1])
+       
+           
         };
         // Handle WebSocket error event
         websocketRef.current.onerror = (error) => {
@@ -226,4 +210,4 @@ function MapTest() {
     return <div id="map" style={{ width: '100', height: '100vh' }}></div>;
 }
 
-export default MapTest;
+export default MapTesttt;
