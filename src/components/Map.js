@@ -15,15 +15,11 @@ function MapTest() {
     useEffect(() => {
         const THROTTLE_TIME = 10; // Throttle time in milliseconds
                 // Set up the Leaflet map if it doesn't exist
-        if (!mapRef.current) {
-            const map = L.map('map').setView([47.2848, -122.44537], 11);
-            L.tileLayer.wms('http://172.16.25.242:8080/geoserver/natural_earth/wms',{
-                layers: 'natural_earth:ocean',
-                format: 'image/png',
-                transparent: true,
-            }).addTo(map);
-            mapRef.current = map;
-        }
+                if (!mapRef.current) {
+                    const map = L.map('map').setView([47.39885782790412, -122.45102114364046], 11);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                    mapRef.current = map;
+                }
         if (!wmsLayerRef.current) {
             const wmsLayer = L.tileLayer.wms('http://172.16.25.242:8080/geoserver/s57/wms', {
                 layers: 's57:S57All',
@@ -34,7 +30,7 @@ function MapTest() {
         }
         
         // Connect to the WebSocket server
-        websocketRef.current = new WebSocket('ws://172.16.6.133:7000/geosocket');
+        websocketRef.current = new WebSocket('ws://172.16.25.218:5000/geosocket');
         let throttleHandle;
         let dataQueue = [];
         let circle;
@@ -97,8 +93,8 @@ function MapTest() {
                 
                 // Replace these values with your desired starting point coordinates
                     // console.log(hapus)
-    const startLatitude = 47.2848;
-    const startLongitude = -122.44537;
+    const startLatitude = 47.39885782790412;
+    const startLongitude = -122.45102114364046;
     // Replace these values with your desired bearing and distance
     let bearing = data.startAzi; // in degrees
     const distance = 20000; // in meters
