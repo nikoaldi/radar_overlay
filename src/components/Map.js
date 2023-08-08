@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState} from 'react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import './leaflet-geojson-vt';
@@ -8,19 +8,24 @@ function MapTest() {
     const mapRef = useRef(null);
     const websocketRef = useRef(null);
     const vectorTileLayerRef = useRef([]);
+    const geojsonLayerRef = useRef([]);
     const wmsLayerRef = useRef(null);
+
 
     useEffect(() => {
         const THROTTLE_TIME = 10; // Throttle time in milliseconds
-        // Set up the Leaflet map if it doesn't exist
+                // Set up the Leaflet map if it doesn't exist
         if (!mapRef.current) {
             const map = L.map('map').setView([47.2848, -122.44537], 11);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-            mapRef.current = map;     
+            L.tileLayer.wms('http://172.16.25.242:8080/geoserver/natural_earth/wms',{
+                layers: 'natural_earth:ocean',
+                format: 'image/png',
+                transparent: true,
+            }).addTo(map);
+            mapRef.current = map;
         }
-
         if (!wmsLayerRef.current) {
-            const wmsLayer = L.tileLayer.wms('http://172.16.1.37:8080/geoserver/s57/wms', {
+            const wmsLayer = L.tileLayer.wms('http://172.16.25.242:8080/geoserver/s57/wms', {
                 layers: 's57:S57All',
                 format: 'image/png',
                 transparent: true,
@@ -29,7 +34,7 @@ function MapTest() {
         }
         
         // Connect to the WebSocket server
-        websocketRef.current = new WebSocket('ws://172.16.25.218:5000/geosocket');
+        websocketRef.current = new WebSocket('ws://172.16.6.133:7000/geosocket');
         let throttleHandle;
         let dataQueue = [];
         let circle;
@@ -38,8 +43,9 @@ function MapTest() {
         let hitung = 0;
         let startAzDelete = null;
         let endAzDelete = null;
-        let hapus = 0;
         let polyline;
+        let on = 0;
+        
         // Function to create/update the circle with a given radius
         function updateCircleRadius(radius) {
             if (circle) {
@@ -54,8 +60,8 @@ function MapTest() {
                 }).addTo(mapRef.current);
             }
         }
+
         function updateLineCoordinates(startLat, startLng, endLat, endLng) {
-            
             var lineCoordinates = [
                 [startLat, startLng], // Start point (latitude, longitude)
                 [endLat, endLng]      // End point (latitude, longitude)
@@ -79,19 +85,18 @@ function MapTest() {
             const data = JSON.parse(event.data);
             try {
                 if(startAzDelete === null ){
-                    startAzDelete = data.startAzi - 2;
-                    endAzDelete =  data.endAzi + 1;
+                    startAzDelete = data.startAzi;
+                    endAzDelete =  startAzDelete + 3;
                 } 
-                if (hapus === 0){
-                    if(data.startAzi > endAzDelete){
-                        hapus = 1;
+                if (on === 1){
+                    if(data.startAzi > 170 && data.startAzi < 180){
+                        console.log("sasa")
                     }
-                } else if (hapus ===1){
-                    if(data.startAzi > startAzDelete && data.startAzi <  endAzDelete){
-                        hapus = 2;
-                    }
-                }
-                    // Replace these values with your desired starting point coordinates
+                    
+                } 
+                
+                // Replace these values with your desired starting point coordinates
+                    // console.log(hapus)
     const startLatitude = 47.2848;
     const startLongitude = -122.44537;
     // Replace these values with your desired bearing and distance
@@ -116,22 +121,32 @@ function MapTest() {
             );
         return [((lat2 * 180) / Math.PI).toFixed(6), ((lon2 * 180) / Math.PI).toFixed(6)];
         }
-                    // Create a moving polyline
-                    const startLatLng = L.latLng(startLatitude, startLongitude);
-                    const destinationPoint = calculateDestinationPoint(startLatitude, startLongitude, bearing, distance);
+           // Create a moving polyline
+            const startLatLng = L.latLng(startLatitude, startLongitude);
+            const destinationPoint = calculateDestinationPoint(startLatitude, startLongitude, bearing, distance);
             // Draw Line
             updateLineCoordinates(startLatitude,startLongitude,destinationPoint[0],destinationPoint[1])  
             } catch {
                 return;
             }
             if (data.features && data.features.length > 0) {
+                if (data.startAzi > 180 && data.startAzi < 185 && on === 0){
+                    on =1;
+                } 
+                else if (data.startAzi > 160 && data.startAzi < 180 && on === 1){
+                    on =2;
+                }
+                
                 // Add received data to the queue
                 dataQueue.push(data);
 
                 // Throttle the data handling
                 if (!throttleHandle) {
                     throttleHandle = setTimeout(() => {
-                        processGeoJSONData(dataQueue);
+                        if(on !== 0  ){
+                            processGeoJSONData(dataQueue);
+                        }
+                        
                         throttleHandle = null;
                         dataQueue = [];
                     }, THROTTLE_TIME);
@@ -144,16 +159,16 @@ function MapTest() {
             const options = (feature) => {
                 hitung = hitung +1;
                 // Draw Circle
-                if (data.features[data.features.length -1].properties.radius > CircleLength ) {
-                    radius = data.features[data.features.length -1].properties.radius
-                    CircleLength = data.features[data.features.length -1].properties.radius;
+                if (data.radius > CircleLength ) {
+                    radius = data.radius
+                    CircleLength = data.radius;
                     updateCircleRadius(radius);
                 }
                 const properties = feature.properties || {}; // Ensure properties object exists
                 // Provide default values if properties are missing
                 const strokeColor = properties.stroke || '#2AC80D';
                 const fillColor = properties.fill || '#2AC80D';
-                const weight = properties.weight || 3;
+                const weight = properties.weight || 4.5;
                 const opacity = properties.opacity || 1.0;
                 const fillOpacity = properties.opacity || 1.0;
                 return {
@@ -165,11 +180,15 @@ function MapTest() {
                 };
             };            
             const vectorTile = L.geoJson(data, { style: options });
-            vectorTile.addTo(mapRef.current);
+            
+        
             try {
-                if (hapus === 2){
-                        mapRef.current.removeLayer(vectorTileLayerRef.current[0]);
-                        vectorTileLayerRef.current.shift();
+                if (on === 2 && vectorTileLayerRef.current.length > 0) {
+                    mapRef.current.removeLayer(vectorTileLayerRef.current[0]);
+                    vectorTileLayerRef.current.shift();
+                    vectorTile.addTo(mapRef.current);
+                } else {
+                    vectorTile.addTo(mapRef.current);
                 }
             } catch (error){
                 console.log("Error");
@@ -181,6 +200,8 @@ function MapTest() {
         websocketRef.current.onerror = (error) => {
             console.error('WebSocket error:', error);
         };
+
+
         // Clean up the WebSocket connection on unmount
         return () => {
             clearTimeout(throttleHandle);
