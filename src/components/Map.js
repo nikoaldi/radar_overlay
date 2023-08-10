@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState} from 'react';
+import React, { useEffect, useRef} from 'react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import './leaflet-geojson-vt';
@@ -9,13 +9,13 @@ function MapTest() {
     const websocketRef = useRef(null);
     const vectorTileLayerRef = useRef([]);
     const wmsLayerRef = useRef(null);
-    const seamaps = process.env.REACT_APP_WMS_NATURAL_EARTH;
-    const s57Layer = process.env.REACT_APP_WMS_S57;
-    const websocketUrl = process.env.REACT_APP_WEBSOCKET_URL;
 
 
     useEffect(() => {
         const THROTTLE_TIME = 5; // Throttle time in milliseconds
+        const seamaps = process.env.REACT_APP_WMS_NATURAL_EARTH;
+        const s57Layer = process.env.REACT_APP_WMS_S57;
+        const websocketUrl = process.env.REACT_APP_WEBSOCKET_URL;
 
         if (!mapRef.current) {
             const map = L.map('map').setView([47.39885782790412, -122.45102114364046], 9);
