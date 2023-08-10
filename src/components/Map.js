@@ -8,29 +8,39 @@ function MapTest() {
     const mapRef = useRef(null);
     const websocketRef = useRef(null);
     const vectorTileLayerRef = useRef([]);
-    const geojsonLayerRef = useRef([]);
     const wmsLayerRef = useRef(null);
+    const seamaps = process.env.REACT_APP_WMS_NATURAL_EARTH;
+    const s57Layer = process.env.REACT_APP_WMS_S57;
+    const websocketUrl = process.env.REACT_APP_WEBSOCKET_URL;
 
 
     useEffect(() => {
-        const THROTTLE_TIME = 10; // Throttle time in milliseconds
-                // Set up the Leaflet map if it doesn't exist
-                if (!mapRef.current) {
-                    const map = L.map('map').setView([47.39885782790412, -122.45102114364046], 11);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-                    mapRef.current = map;
-                }
+        const THROTTLE_TIME = 5; // Throttle time in milliseconds
+
+        if (!mapRef.current) {
+            const map = L.map('map').setView([47.39885782790412, -122.45102114364046], 9);
+            L.tileLayer.wms(seamaps ,{
+                layers: 'natural_earth:ocean',
+                format: 'image/png',
+                transparent: true,
+                tiled: true,
+            }).addTo(map);
+            console.log("seamaps:", seamaps);
+            mapRef.current = map;
+        }
+
         if (!wmsLayerRef.current) {
-            const wmsLayer = L.tileLayer.wms('http://172.16.25.242:8080/geoserver/s57/wms', {
+            const wmsLayer = L.tileLayer.wms(s57Layer, {
                 layers: 's57:S57All',
                 format: 'image/png',
                 transparent: true,
+                tiled: true,
             }).addTo(mapRef.current);
             wmsLayerRef.current = wmsLayer;
         }
         
         // Connect to the WebSocket server
-        websocketRef.current = new WebSocket('ws://172.16.25.218:5000/geosocket');
+        websocketRef.current = new WebSocket(websocketUrl);
         let throttleHandle;
         let dataQueue = [];
         let circle;
@@ -51,7 +61,7 @@ function MapTest() {
                     weight:2,
                     color: '#2AC80D',
                     fillColor: '#000000',
-                    fillOpacity: 0.5,
+                    fillOpacity: 1,
                     radius: radius,
                 }).addTo(mapRef.current);
             }
@@ -79,6 +89,7 @@ function MapTest() {
         // Handle WebSocket message event
         websocketRef.current.onmessage = (event) => {
             const data = JSON.parse(event.data);
+            // console.log(data)
             try {
                 if(startAzDelete === null ){
                     startAzDelete = data.startAzi;
@@ -164,7 +175,7 @@ function MapTest() {
                 // Provide default values if properties are missing
                 const strokeColor = properties.stroke || '#2AC80D';
                 const fillColor = properties.fill || '#2AC80D';
-                const weight = properties.weight || 4.5;
+                const weight = properties.weight || 2;
                 const opacity = properties.opacity || 1.0;
                 const fillOpacity = properties.opacity || 1.0;
                 return {
